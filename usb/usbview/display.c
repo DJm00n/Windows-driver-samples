@@ -208,7 +208,8 @@ VOID
 DisplayConfigDesc (
     PUSBDEVICEINFO                  info,
     PUSB_CONFIGURATION_DESCRIPTOR   ConfigDesc,
-    PSTRING_DESCRIPTOR_NODE         StringDescs
+    PSTRING_DESCRIPTOR_NODE         StringDescs,
+    PHID_REPORT_DESCRIPTOR_NODE     HidReportDescs
     );
 
 VOID
@@ -272,7 +273,9 @@ DisplayEndointCompanionDescriptor (
 
 VOID
 DisplayHidDescriptor (
-    PUSB_HID_DESCRIPTOR         HidDesc
+    PUSB_HID_DESCRIPTOR         HidDesc,
+    UCHAR                       InterfaceNumber,
+    PHID_REPORT_DESCRIPTOR_NODE HidReportDescs
     );
 
 VOID
@@ -303,6 +306,12 @@ DisplayUSEnglishStringDescriptor (
     UCHAR                       Index,
     PSTRING_DESCRIPTOR_NODE     USStringDescs,
     DEVICE_POWER_STATE          LatestDevicePowerState
+    );
+
+VOID
+DisplayHidReportDescriptor (
+    UCHAR                       InterfaceNumber,
+    PHID_REPORT_DESCRIPTOR_NODE HidReportDescs
     );
 
 VOID
@@ -709,6 +718,7 @@ UpdateTreeItemDeviceInfo(
         PUSB_NODE_CONNECTION_INFORMATION_EX_V2 ConnectionInfoV2 = NULL;
         PUSB_DESCRIPTOR_REQUEST                BosDesc = NULL;
         PDEVICE_INFO_NODE                      DeviceInfoNode = NULL;
+        PHID_REPORT_DESCRIPTOR_NODE            HidReportDescs = NULL;
 
         // The TextBuffer has the TreeView name; add 2 lines for display
         AppendTextBuffer("\r\n\r\n");
@@ -889,6 +899,7 @@ UpdateTreeItemDeviceInfo(
                 StringDescs        = ((PUSBDEVICEINFO)info)->StringDescs;
                 BosDesc            = ((PUSBDEVICEINFO)info)->BosDesc;
                 DeviceInfoNode     = ((PUSBDEVICEINFO)info)->DeviceInfoNode;
+                HidReportDescs     = ((PUSBDEVICEINFO)info)->HidReportDescs;
                 break;
         }
 
@@ -930,7 +941,8 @@ UpdateTreeItemDeviceInfo(
         {
             DisplayConfigDesc((PUSBDEVICEINFO)info,
                 (PUSB_CONFIGURATION_DESCRIPTOR)(ConfigDesc + 1),
-                StringDescs);
+                StringDescs,
+                HidReportDescs);
         }
 
         if (BosDesc)
@@ -1934,10 +1946,12 @@ VOID
 DisplayConfigDesc (
     PUSBDEVICEINFO                  info,
     PUSB_CONFIGURATION_DESCRIPTOR   ConfigDesc,
-    PSTRING_DESCRIPTOR_NODE         StringDescs
+    PSTRING_DESCRIPTOR_NODE         StringDescs,
+    PHID_REPORT_DESCRIPTOR_NODE     HidReportDescs
     )
 {
     PUSB_COMMON_DESCRIPTOR          commonDesc = NULL;
+    UCHAR                           bInterfaceNumber = 0;
     UCHAR                           bInterfaceClass = 0;
     UCHAR                           bInterfaceSubClass = 0;
     UCHAR                           bInterfaceProtocol = 0;
@@ -2048,6 +2062,7 @@ DisplayConfigDesc (
                 displayUnknown = TRUE;
                 break;
             }
+            bInterfaceNumber = ((PUSB_INTERFACE_DESCRIPTOR)commonDesc)->bInterfaceNumber;
             bInterfaceClass = ((PUSB_INTERFACE_DESCRIPTOR)commonDesc)->bInterfaceClass;
             bInterfaceSubClass = ((PUSB_INTERFACE_DESCRIPTOR)commonDesc)->bInterfaceSubClass;
             bInterfaceProtocol = ((PUSB_INTERFACE_DESCRIPTOR)commonDesc)->bInterfaceProtocol;
@@ -2126,7 +2141,7 @@ DisplayConfigDesc (
                 displayUnknown = TRUE;
                 break;
             }
-            DisplayHidDescriptor((PUSB_HID_DESCRIPTOR)commonDesc);
+            DisplayHidDescriptor((PUSB_HID_DESCRIPTOR)commonDesc, bInterfaceNumber, HidReportDescs);
             break;
 
         case USB_OTG_DESCRIPTOR_TYPE:
@@ -3456,8 +3471,14 @@ DisplayInterfaceDescriptor (
         {
             AppendTextBuffer("  -> HID Interface Class\r\n");
         }
-        AppendTextBuffer("bInterfaceSubClass:                0x%02X\r\n",
+        AppendTextBuffer("bInterfaceSubClass:                0x%02X",
             InterfaceDesc->bInterfaceSubClass);
+        if (gDoAnnotation)
+        {
+            if (InterfaceDesc->bInterfaceSubClass == USB_HID_INTERFACE_SUBCLASS_BOOT)
+                AppendTextBuffer("  -> HID Boot Interface Subclass");
+        }
+        AppendTextBuffer("\r\n");
         break;
 
     case USB_DEVICE_CLASS_HUB:
@@ -3626,8 +3647,21 @@ DisplayInterfaceDescriptor (
         break;
     }
 
-    AppendTextBuffer("bInterfaceProtocol:                0x%02X\r\n",
+    AppendTextBuffer("bInterfaceProtocol:                0x%02X",
         InterfaceDesc->bInterfaceProtocol);
+    if (gDoAnnotation &&
+        InterfaceDesc->bInterfaceClass == USB_DEVICE_CLASS_HUMAN_INTERFACE)
+    {
+        if (InterfaceDesc->bInterfaceProtocol == USB_HID_INTERFACE_PROTOCOL_KEYBOARD)
+        {
+            AppendTextBuffer("  -> HID Keyboard Boot Protocol");
+        }
+        else if (InterfaceDesc->bInterfaceProtocol == USB_HID_INTERFACE_PROTOCOL_MOUSE)
+        {
+            AppendTextBuffer("  -> HID Mouse Boot Protocol");
+        }
+    }
+    AppendTextBuffer("\r\n");
 
     //This is basically the check for PC_PROTOCOL_UNDEFINED
     if ((InterfaceDesc->bInterfaceClass == USB_DEVICE_CLASS_VIDEO) ||
@@ -4230,7 +4264,9 @@ DisplayHidDescriptor()
 
 VOID
 DisplayHidDescriptor (
-    PUSB_HID_DESCRIPTOR         HidDesc
+    PUSB_HID_DESCRIPTOR         HidDesc,
+    UCHAR                       InterfaceNumber,
+    PHID_REPORT_DESCRIPTOR_NODE HidReportDescs
     )
 {
     UCHAR i = 0;
@@ -4252,8 +4288,12 @@ DisplayHidDescriptor (
 
     for (i=0; i<HidDesc->bNumDescriptors; i++)
     {
-        if (HidDesc->OptionalDescriptors[i].bDescriptorType == 0x22) {
+        if (HidDesc->OptionalDescriptors[i].bDescriptorType == USB_HID_REPORT_DESCRIPTOR_TYPE) {
             AppendTextBuffer("bDescriptorType:                   0x%02X (Report Descriptor)\r\n",
+                HidDesc->OptionalDescriptors[i].bDescriptorType);
+        }
+        else if (HidDesc->OptionalDescriptors[i].bDescriptorType == USB_HID_PHYSICAL_DESCRIPTOR_TYPE) {
+            AppendTextBuffer("bDescriptorType:                   0x%02X (Physical Descriptor)\r\n",
                 HidDesc->OptionalDescriptors[i].bDescriptorType);
         }
         else {
@@ -4263,6 +4303,12 @@ DisplayHidDescriptor (
 
         AppendTextBuffer("wDescriptorLength:               0x%04X\r\n",
             HidDesc->OptionalDescriptors[i].wDescriptorLength);
+
+        if (gDoAnnotation &&
+            HidDesc->OptionalDescriptors[i].bDescriptorType == USB_HID_REPORT_DESCRIPTOR_TYPE)
+        {
+            DisplayHidReportDescriptor(InterfaceNumber, HidReportDescs);
+        }
     }
 }
 
@@ -5062,6 +5108,41 @@ DisplayStringDescriptor (
         {
             AppendTextBuffer("String Descriptor for index %d not available while device is in low power state.\r\n", Index);
         }
+    }
+}
+
+/*****************************************************************************
+
+DisplayHidReportDescriptor()
+
+*****************************************************************************/
+VOID
+DisplayHidReportDescriptor(
+    UCHAR                       InterfaceNumber,
+    PHID_REPORT_DESCRIPTOR_NODE HidReportDescs
+)
+{
+    BOOLEAN FoundMatchingDesc = FALSE;
+
+    while (HidReportDescs)
+    {
+        if (HidReportDescs->InterfaceNumber == InterfaceNumber)
+        {
+            FoundMatchingDesc = TRUE;
+
+            AppendTextBuffer("\r\n          ===>HID Report Descriptor Hex Dump<===\r\n");
+
+            DisplayRemainingUnknownDescriptor((PUCHAR)HidReportDescs->Descriptor, 0, HidReportDescs->DescriptorLength);
+
+            break;
+        }
+        HidReportDescs = HidReportDescs->Next;
+    }
+
+    if (!FoundMatchingDesc)
+    {
+        AppendTextBuffer("*!*ERROR:  No HID Descriptor for interface %d!\r\n", InterfaceNumber);
+        OOPS();
     }
 }
 

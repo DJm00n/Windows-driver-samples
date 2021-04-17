@@ -1,5 +1,5 @@
 /*++
-    
+
 Copyright (c) 1997-2011 Microsoft Corporation
 
 Module Name:
@@ -42,8 +42,8 @@ Abstract:
     to a port, send the hub an IOCTL_USB_GET_NODE_CONNECTION_NAME request
     to get the symbolic link name of the hub attached to the downstream
     port.  If there is a hub attached to the downstream port, recurse to
-    step (2).  
-    
+    step (2).
+
     GetAllStringDescriptors()
     GetConfigDescriptor()
     Create a node in the TreeView to represent each hub port
@@ -143,18 +143,18 @@ GetBOSDescriptor (
     ULONG   ConnectionIndex
     );
 
-DWORD 
+DWORD
 GetHostControllerPowerMap(
-    HANDLE hHCDev, 
+    HANDLE hHCDev,
     PUSBHOSTCONTROLLERINFO hcInfo);
 
-DWORD 
+DWORD
 GetHostControllerInfo(
-    HANDLE hHCDev, 
+    HANDLE hHCDev,
     PUSBHOSTCONTROLLERINFO hcInfo);
 
-PCHAR WideStrToMultiStr ( 
-     _In_reads_bytes_(cbWideStr) PWCHAR WideStr, 
+PCHAR WideStrToMultiStr (
+     _In_reads_bytes_(cbWideStr) PWCHAR WideStr,
      _In_ size_t                   cbWideStr
      );
 
@@ -190,13 +190,28 @@ GetStringDescriptors (
     _In_ PSTRING_DESCRIPTOR_NODE        StringDescNodeHead
 );
 
+PHID_REPORT_DESCRIPTOR_NODE
+GetAllHIDReportDescriptors(
+    HANDLE                          hHubDevice,
+    ULONG                           ConnectionIndex,
+    PUSB_CONFIGURATION_DESCRIPTOR   ConfigDesc
+);
+
+PHID_REPORT_DESCRIPTOR_NODE
+GetHIDReportDescriptor(
+    HANDLE  hHubDevice,
+    ULONG   ConnectionIndex,
+    UCHAR   InterfaceNumber,
+    USHORT  DescriptorLength
+);
+
 void
 EnumerateAllDevices();
 
 
 void
 EnumerateAllDevicesWithGuid(
-    PDEVICE_GUID_LIST DeviceList, 
+    PDEVICE_GUID_LIST DeviceList,
     LPGUID Guid
     );
 
@@ -654,7 +669,7 @@ EnumerateHub (
     ULONG                   nBytes = 0;
     BOOL                    success = 0;
     DWORD                   dwSizeOfLeafName = 0;
-    CHAR                    leafName[512] = {0}; 
+    CHAR                    leafName[512] = {0};
     HRESULT                 hr = S_OK;
     size_t                  cchHeader = 0;
     size_t                  cchFullHubName = 0;
@@ -850,11 +865,11 @@ EnumerateHub (
     if (ConnectionInfo)
     {
         StringCchPrintf(leafName, dwSizeOfLeafName, "[Port%d] ", ConnectionInfo->ConnectionIndex);
-        StringCchCat(leafName, 
-            dwSizeOfLeafName, 
+        StringCchCat(leafName,
+            dwSizeOfLeafName,
             ConnectionStatuses[ConnectionInfo->ConnectionStatus]);
-        StringCchCatN(leafName, 
-            dwSizeOfLeafName, 
+        StringCchCatN(leafName,
+            dwSizeOfLeafName,
             " :  ",
             sizeof(" :  "));
     }
@@ -865,8 +880,8 @@ EnumerateHub (
         hr = StringCbLength(DevProps->DeviceDesc, MAX_DRIVER_KEY_NAME, &cbDeviceDesc);
         if(SUCCEEDED(hr))
         {
-            StringCchCatN(leafName, 
-                    dwSizeOfLeafName, 
+            StringCchCatN(leafName,
+                    dwSizeOfLeafName,
                     DevProps->DeviceDesc,
                     cbDeviceDesc);
         }
@@ -876,18 +891,18 @@ EnumerateHub (
         if(ConnectionInfo != NULL)
         {
             // External hub
-            StringCchCatN(leafName, 
-                    dwSizeOfLeafName, 
+            StringCchCatN(leafName,
+                    dwSizeOfLeafName,
                     HubName,
                     cbHubName);
         }
         else
         {
             // Root hub
-            StringCchCatN(leafName, 
-                    dwSizeOfLeafName, 
+            StringCchCatN(leafName,
+                    dwSizeOfLeafName,
                     "RootHub",
-                    sizeof("RootHub")); 
+                    sizeof("RootHub"));
         }
     }
 
@@ -1016,6 +1031,7 @@ EnumerateHubPorts (
     PUSBDEVICEINFO                         info;
     PUSB_NODE_CONNECTION_INFORMATION_EX_V2 connectionInfoExV2;
     PDEVICE_INFO_NODE                      pNode;
+    PHID_REPORT_DESCRIPTOR_NODE            hidReportDescs;
 
     // Loop over all ports of the hub.
     //
@@ -1035,6 +1051,7 @@ EnumerateHubPorts (
         info = NULL;
         connectionInfoExV2 = NULL;
         pNode = NULL;
+        hidReportDescs = NULL;
         DevProps = NULL;
         ZeroMemory(leafName, sizeof(leafName));
 
@@ -1062,7 +1079,7 @@ EnumerateHubPorts (
             break;
         }
 
-        connectionInfoExV2 = (PUSB_NODE_CONNECTION_INFORMATION_EX_V2) 
+        connectionInfoExV2 = (PUSB_NODE_CONNECTION_INFORMATION_EX_V2)
                                     ALLOC(sizeof(USB_NODE_CONNECTION_INFORMATION_EX_V2));
 
         if (connectionInfoExV2 == NULL)
@@ -1071,7 +1088,7 @@ EnumerateHubPorts (
             FREE(connectionInfoEx);
             break;
         }
-        
+
         //
         // Now query USBHUB for the structures
         // for this port.  This will tell us if a device is attached to this
@@ -1090,7 +1107,7 @@ EnumerateHubPorts (
                                   &nBytes,
                                   NULL);
 
-        if (success && nBytes == sizeof(USB_PORT_CONNECTOR_PROPERTIES)) 
+        if (success && nBytes == sizeof(USB_PORT_CONNECTOR_PROPERTIES))
         {
             pPortConnectorProps = (PUSB_PORT_CONNECTOR_PROPERTIES)
                                         ALLOC(portConnectorProps.ActualLength);
@@ -1098,7 +1115,7 @@ EnumerateHubPorts (
             if (pPortConnectorProps != NULL)
             {
                 pPortConnectorProps->ConnectionIndex = index;
-                
+
                 success = DeviceIoControl(hHubDevice,
                                           IOCTL_USB_GET_PORT_CONNECTOR_PROPERTIES,
                                           pPortConnectorProps,
@@ -1115,7 +1132,7 @@ EnumerateHubPorts (
                 }
             }
         }
-        
+
         connectionInfoExV2->ConnectionIndex = index;
         connectionInfoExV2->Length = sizeof(USB_NODE_CONNECTION_INFORMATION_EX_V2);
         connectionInfoExV2->SupportedUsbProtocols.Usb300 = 1;
@@ -1129,7 +1146,7 @@ EnumerateHubPorts (
                                   &nBytes,
                                   NULL);
 
-        if (!success || nBytes < sizeof(USB_NODE_CONNECTION_INFORMATION_EX_V2)) 
+        if (!success || nBytes < sizeof(USB_NODE_CONNECTION_INFORMATION_EX_V2))
         {
             FREE(connectionInfoExV2);
             connectionInfoExV2 = NULL;
@@ -1154,17 +1171,17 @@ EnumerateHubPorts (
             // of superspeed, we overwrite the value if the super speed
             // data structures are available and indicate the device is operating
             // at SuperSpeed.
-            // 
-            
-            if (connectionInfoEx->Speed == UsbHighSpeed 
-                && connectionInfoExV2 != NULL 
+            //
+
+            if (connectionInfoEx->Speed == UsbHighSpeed
+                && connectionInfoExV2 != NULL
                 && (connectionInfoExV2->Flags.DeviceIsOperatingAtSuperSpeedOrHigher ||
                     connectionInfoExV2->Flags.DeviceIsOperatingAtSuperSpeedPlusOrHigher))
             {
                 connectionInfoEx->Speed = UsbSuperSpeed;
             }
-        } 
-        else 
+        }
+        else
         {
             PUSB_NODE_CONNECTION_INFORMATION    connectionInfo = NULL;
 
@@ -1177,7 +1194,7 @@ EnumerateHubPorts (
 
             connectionInfo = (PUSB_NODE_CONNECTION_INFORMATION)ALLOC(nBytes);
 
-            if (connectionInfo == NULL) 
+            if (connectionInfo == NULL)
             {
                 OOPS();
 
@@ -1190,7 +1207,7 @@ EnumerateHubPorts (
                 {
                     FREE(connectionInfoExV2);
                 }
-                continue;                
+                continue;
             }
 
             connectionInfo->ConnectionIndex = index;
@@ -1361,7 +1378,7 @@ EnumerateHubPorts (
                     FREE(bosDesc);
                 }
                 FREE(connectionInfoEx);
-                
+
                 if (pPortConnectorProps != NULL)
                 {
                     FREE(pPortConnectorProps);
@@ -1373,6 +1390,18 @@ EnumerateHubPorts (
                 break;
             }
 
+            if (configDesc != NULL)
+            {
+                hidReportDescs = GetAllHIDReportDescriptors(
+                    hHubDevice,
+                    index,
+                    (PUSB_CONFIGURATION_DESCRIPTOR)(configDesc + 1));
+            }
+            else
+            {
+                hidReportDescs = NULL;
+            }
+
             info->DeviceInfoType = DeviceInfo;
             info->ConnectionInfo = connectionInfoEx;
             info->PortConnectorProps = pPortConnectorProps;
@@ -1382,12 +1411,13 @@ EnumerateHubPorts (
             info->ConnectionInfoV2 = connectionInfoExV2;
             info->UsbDeviceProperties = DevProps;
             info->DeviceInfoNode = pNode;
+            info->HidReportDescs = hidReportDescs;
 
             StringCchPrintf(leafName, sizeof(leafName), "[Port%d] ", index);
 
             // Add error description if ConnectionStatus is other than NoDeviceConnected / DeviceConnected
-            StringCchCat(leafName, 
-                sizeof(leafName), 
+            StringCchCat(leafName,
+                sizeof(leafName),
                 ConnectionStatuses[connectionInfoEx->ConnectionStatus]);
 
             if (DevProps)
@@ -1400,12 +1430,12 @@ EnumerateHubPorts (
                     OOPS();
                 }
                 dwSizeOfLeafName = sizeof(leafName);
-                StringCchCatN(leafName, 
-                    dwSizeOfLeafName - 1, 
+                StringCchCatN(leafName,
+                    dwSizeOfLeafName - 1,
                     " :  ",
                     sizeof(" :  "));
-                StringCchCatN(leafName, 
-                    dwSizeOfLeafName - 1, 
+                StringCchCatN(leafName,
+                    dwSizeOfLeafName - 1,
                     DevProps->DeviceDesc,
                     cchDeviceDesc );
             }
@@ -1453,8 +1483,8 @@ EnumerateHubPorts (
 //
 //*****************************************************************************
 
-PCHAR WideStrToMultiStr ( 
-                         _In_reads_bytes_(cbWideStr) PWCHAR WideStr, 
+PCHAR WideStrToMultiStr (
+                         _In_reads_bytes_(cbWideStr) PWCHAR WideStr,
                          _In_ size_t                   cbWideStr
                          )
 {
@@ -1875,7 +1905,7 @@ PCHAR GetHCDDriverKeyName (
     //
     // Convert the driver key name
     // Pass the length of the DriverKeyName string
-    // 
+    //
 
     driverKeyNameA = WideStrToMultiStr(driverKeyNameW->DriverKeyName, nBytes - sizeof(USB_HCD_DRIVERKEY_NAME) + sizeof(WCHAR));
 
@@ -2508,7 +2538,7 @@ GetAllStringDescriptors (
         // historically USBView made this query, so the query should be safe for
         // video devices.
         //
-        for (uIndex = 1; SUCCEEDED(hr) && (uIndex < NUM_STRING_DESC_TO_GET); uIndex++) 
+        for (uIndex = 1; SUCCEEDED(hr) && (uIndex < NUM_STRING_DESC_TO_GET); uIndex++)
         {
             hr = GetStringDescriptors(hHubDevice,
                                       ConnectionIndex,
@@ -2521,7 +2551,7 @@ GetAllStringDescriptors (
 
     return supportedLanguagesString;
 }
-            
+
 
 
 //*****************************************************************************
@@ -2737,6 +2767,200 @@ GetStringDescriptors (
     }
 }
 
+PHID_REPORT_DESCRIPTOR_NODE
+GetAllHIDReportDescriptors(
+    HANDLE                          hHubDevice,
+    ULONG                           ConnectionIndex,
+    PUSB_CONFIGURATION_DESCRIPTOR   ConfigDesc
+)
+{
+    PHID_REPORT_DESCRIPTOR_NODE hidReportDescriptors = NULL;
+    PHID_REPORT_DESCRIPTOR_NODE hidReportDescriptorsTail = NULL;
+
+    PUCHAR                  descEnd = NULL;
+    PUSB_COMMON_DESCRIPTOR  commonDesc = NULL;
+
+    //
+    // Get HID Report Descriptors per each HID Interface
+    //
+
+    descEnd = (PUCHAR)ConfigDesc + ConfigDesc->wTotalLength;
+
+    commonDesc = (PUSB_COMMON_DESCRIPTOR)ConfigDesc;
+
+    while ((PUCHAR)commonDesc + sizeof(USB_COMMON_DESCRIPTOR) < descEnd &&
+        (PUCHAR)commonDesc + commonDesc->bLength <= descEnd)
+    {
+        if (commonDesc->bDescriptorType == USB_INTERFACE_DESCRIPTOR_TYPE)
+        {
+            if (commonDesc->bLength != sizeof(USB_INTERFACE_DESCRIPTOR) &&
+                commonDesc->bLength != sizeof(USB_INTERFACE_DESCRIPTOR2))
+            {
+                OOPS();
+                break;
+            }
+
+            PUSB_INTERFACE_DESCRIPTOR interfaceDescriptor = (PUSB_INTERFACE_DESCRIPTOR)commonDesc;
+
+            if (interfaceDescriptor->bInterfaceClass == USB_DEVICE_CLASS_HUMAN_INTERFACE &&
+                (PUCHAR)commonDesc + sizeof(USB_COMMON_DESCRIPTOR) < descEnd &&
+                (PUCHAR)commonDesc + commonDesc->bLength <= descEnd)
+            {
+                // Next descriptor after HID Class Interface
+                // should be HID Descriptor associated with above Interface
+                if (((PUSB_COMMON_DESCRIPTOR)((PUCHAR)commonDesc + commonDesc->bLength))->bDescriptorType != USB_HID_DESCRIPTOR_TYPE)
+                {
+                    OOPS();
+                    break;
+                }
+
+                if (((PUSB_COMMON_DESCRIPTOR)((PUCHAR)commonDesc + commonDesc->bLength))->bLength < sizeof(USB_HID_DESCRIPTOR))
+                {
+                    OOPS();
+                    break;
+                }
+
+                PUSB_HID_DESCRIPTOR hidDescriptor = (PUSB_HID_DESCRIPTOR)((PUCHAR)commonDesc + commonDesc->bLength);
+
+                // One HID Report Descriptor
+                // Just skipping any Physical Descriptors
+                if (hidDescriptor->bNumDescriptors == 1 &&
+                    hidDescriptor->OptionalDescriptors[0].bDescriptorType == USB_HID_REPORT_DESCRIPTOR_TYPE)
+                {
+                    // Strange zero length
+                    if (hidDescriptor->OptionalDescriptors[0].wDescriptorLength == 0)
+                    {
+                        OOPS();
+                        break;
+                    }
+
+                    PHID_REPORT_DESCRIPTOR_NODE hidReportDescriptor = GetHIDReportDescriptor(hHubDevice,
+                        ConnectionIndex,
+                        interfaceDescriptor->bInterfaceNumber,
+                        hidDescriptor->OptionalDescriptors[0].wDescriptorLength);
+
+                    if (hidReportDescriptors != NULL)
+                    {
+                        // Append to linked list
+                        hidReportDescriptorsTail->Next = hidReportDescriptor;
+                        hidReportDescriptorsTail = hidReportDescriptorsTail->Next;
+                    }
+                    else
+                    {
+                        hidReportDescriptors = hidReportDescriptor;
+                        hidReportDescriptorsTail = hidReportDescriptors;
+                    }
+                }
+            }
+        }
+
+        commonDesc = (PUSB_COMMON_DESCRIPTOR)((PUCHAR)commonDesc + commonDesc->bLength);
+    }
+
+    return hidReportDescriptors;
+}
+
+PHID_REPORT_DESCRIPTOR_NODE
+GetHIDReportDescriptor(
+    HANDLE  hHubDevice,
+    ULONG   ConnectionIndex,
+    UCHAR   InterfaceNumber,
+    USHORT  DescriptorLength
+)
+{
+    BOOL    success = 0;
+    ULONG   nBytes = sizeof(USB_DESCRIPTOR_REQUEST) + DescriptorLength;
+    ULONG   nBytesReturned = 0;
+
+    // Request the entire HID Descriptor using a dynamically
+    // allocated buffer which is sized big enough to hold the entire descriptor
+    //
+    PUSB_DESCRIPTOR_REQUEST hidDescReq = (PUSB_DESCRIPTOR_REQUEST)ALLOC(nBytes + 64);
+
+    if (hidDescReq == NULL)
+    {
+        OOPS();
+        return NULL;
+    }
+
+    // Indicate the port from which the descriptor will be requested
+    //
+    hidDescReq->ConnectionIndex = ConnectionIndex;
+
+    //
+    // USBHUB uses URB_FUNCTION_GET_DESCRIPTOR_FROM_DEVICE to process this
+    // IOCTL_USB_GET_DESCRIPTOR_FROM_NODE_CONNECTION request.
+    //
+    // USBD will automatically initialize these fields:
+    //     bmRequest = 0x80 (Endpoint_In)
+    //     bRequest  = 0x06 (Get_Descriptor)
+    //
+    // We must initialize these fields:
+    //     wValue    = Descriptor Type (high byte) and Descriptor Index for Physical Descriptors (low byte)
+    //     wIndex    = Interface Number for HID Report Descriptor or Zero for Physical Descriptors
+    //     wLength   = Length of descriptor buffer
+    //
+
+    hidDescReq->SetupPacket.wValue = (USB_HID_REPORT_DESCRIPTOR_TYPE << 8);
+    hidDescReq->SetupPacket.wIndex = InterfaceNumber;
+    hidDescReq->SetupPacket.wLength = DescriptorLength;
+
+    // Now issue the get descriptor request.
+    //
+
+    success = DeviceIoControl(hHubDevice,
+        IOCTL_USB_GET_DESCRIPTOR_FROM_NODE_CONNECTION,
+        hidDescReq,
+        nBytes,
+        hidDescReq,
+        nBytes,
+        &nBytesReturned,
+        NULL);
+
+
+    if (!success)
+    {
+        OOPS();
+        FREE(hidDescReq);
+        return NULL;
+    }
+
+    ULONG bytesToCopy = nBytesReturned;
+
+    if (bytesToCopy > DescriptorLength) {
+        bytesToCopy = DescriptorLength;
+    }
+
+    if (bytesToCopy > nBytes) {
+        bytesToCopy = nBytes;
+    }
+
+    //
+    // Looks good, allocate some (zero filled) space for the HID descriptor
+    // node and copy the HID descriptor to it.
+    //
+
+    PHID_REPORT_DESCRIPTOR_NODE hidDescNode = (PHID_REPORT_DESCRIPTOR_NODE)ALLOC(sizeof(PHID_REPORT_DESCRIPTOR_NODE) +
+        DescriptorLength);
+
+    if (hidDescNode == NULL)
+    {
+        OOPS();
+        FREE(hidDescReq);
+        return NULL;
+    }
+
+    hidDescNode->InterfaceNumber = InterfaceNumber;
+    hidDescNode->DescriptorLength = DescriptorLength;
+
+    memcpy(hidDescNode->Descriptor,
+        hidDescReq->Data,
+        DescriptorLength);
+
+    FREE(hidDescReq);
+
+    return hidDescNode;
+}
 
 //*****************************************************************************
 //
@@ -2779,11 +3003,12 @@ CleanupItem (
         PUSB_HUB_CAPABILITIES_EX               HubCapabilityEx = NULL;
         PUSB_DEVICE_PNP_STRINGS                UsbDeviceProperties = NULL;
         PUSB_CONTROLLER_INFO_0                 ControllerInfo = NULL;
+        PHID_REPORT_DESCRIPTOR_NODE            HidReportDescs = NULL;
 
         //
         // All structures except DEVICE_INFO_NODE are free'd up here. DEVICE_INFO_NODE structures are free'd while
         // destroying device info lists (ClearDeviceList())
-        // 
+        //
         switch (*(PUSBDEVICEINFOTYPE)info)
         {
             case HostControllerInfo:
@@ -2828,6 +3053,7 @@ CleanupItem (
                 StringDescs = ((PUSBDEVICEINFO)info)->StringDescs;
                 ConnectionInfoV2 = ((PUSBDEVICEINFO)info)->ConnectionInfoV2;
                 UsbDeviceProperties = ((PUSBDEVICEINFO)info)->UsbDeviceProperties;
+                HidReportDescs = ((PUSBDEVICEINFO)info)->HidReportDescs;
                 break;
         }
 
@@ -2889,9 +3115,9 @@ CleanupItem (
             FREE(ConnectionInfoEx);
         }
 
-        if (HubInfoEx) 
+        if (HubInfoEx)
         {
-            FREE(HubInfoEx);        
+            FREE(HubInfoEx);
         }
 
         if (PortConnectorProps)
@@ -2902,6 +3128,18 @@ CleanupItem (
         if (ConnectionInfoV2)
         {
             FREE(ConnectionInfoV2);
+        }
+
+        if (HidReportDescs)
+        {
+            PHID_REPORT_DESCRIPTOR_NODE Next;
+
+            do {
+                Next = HidReportDescs->Next;
+                FREE(HidReportDescs);
+                HidReportDescs = Next;
+
+            } while (HidReportDescs);
         }
 
         FREE(info);
@@ -2923,9 +3161,9 @@ CleanupItem (
 //
 //*****************************************************************************
 
-DWORD 
+DWORD
 GetHostControllerPowerMap(
-    HANDLE hHCDev, 
+    HANDLE hHCDev,
     PUSBHOSTCONTROLLERINFO hcInfo)
 {
     USBUSER_POWER_INFO_REQUEST UsbPowerInfoRequest;
@@ -2936,7 +3174,7 @@ GetHostControllerPowerMap(
     int                        nIndex = 0;
     int                        nPowerState = WdmUsbPowerSystemWorking;
 
-    for ( ; nPowerState <= WdmUsbPowerSystemShutdown; nIndex++, nPowerState++) 
+    for ( ; nPowerState <= WdmUsbPowerSystemShutdown; nIndex++, nPowerState++)
     {
         // zero initialize our request
         memset(&UsbPowerInfoRequest, 0, sizeof(UsbPowerInfoRequest));
@@ -2977,10 +3215,10 @@ GetHostControllerPowerMap(
 void
 EnumerateAllDevices()
 {
-    EnumerateAllDevicesWithGuid(&gDeviceList, 
+    EnumerateAllDevicesWithGuid(&gDeviceList,
                                 (LPGUID)&GUID_DEVINTERFACE_USB_DEVICE);
 
-    EnumerateAllDevicesWithGuid(&gHubList, 
+    EnumerateAllDevicesWithGuid(&gHubList,
                                 (LPGUID)&GUID_DEVINTERFACE_USB_HUB);
 }
 
@@ -3000,9 +3238,9 @@ EnumerateAllDevices()
 //
 //*****************************************************************************
 
-DWORD 
+DWORD
 GetHostControllerInfo(
-    HANDLE hHCDev, 
+    HANDLE hHCDev,
     PUSBHOSTCONTROLLERINFO hcInfo)
 {
     USBUSER_CONTROLLER_INFO_0 UsbControllerInfo;
@@ -3111,7 +3349,7 @@ GetDeviceProperty(
 
 void
 EnumerateAllDevicesWithGuid(
-    PDEVICE_GUID_LIST DeviceList, 
+    PDEVICE_GUID_LIST DeviceList,
     LPGUID Guid
     )
 {
@@ -3193,7 +3431,7 @@ EnumerateAllDevicesWithGuid(
                 }
 
                 pNode->DeviceInterfaceData.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA);
-        
+
                 success = SetupDiEnumDeviceInterfaces(DeviceList->DeviceInfo,
                                                       0,
                                                       Guid,
@@ -3205,23 +3443,23 @@ EnumerateAllDevicesWithGuid(
                     OOPS();
                     break;
                 }
-             
+
                 success = SetupDiGetDeviceInterfaceDetail(DeviceList->DeviceInfo,
                                                           &pNode->DeviceInterfaceData,
                                                           NULL,
                                                           0,
                                                           &requiredLength,
                                                           NULL);
-        
+
                 error = GetLastError();
-                
+
                 if (!success && error != ERROR_INSUFFICIENT_BUFFER)
                 {
                     FreeDeviceInfoNode(&pNode);
                     OOPS();
                     break;
                 }
-                
+
                 pNode->DeviceDetailData = ALLOC(requiredLength);
 
                 if (pNode->DeviceDetailData == NULL)
@@ -3230,9 +3468,9 @@ EnumerateAllDevicesWithGuid(
                     OOPS();
                     break;
                 }
-                
+
                 pNode->DeviceDetailData->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA);
-                
+
                 success = SetupDiGetDeviceInterfaceDetail(DeviceList->DeviceInfo,
                                                           &pNode->DeviceInterfaceData,
                                                           pNode->DeviceDetailData,
@@ -3244,8 +3482,8 @@ EnumerateAllDevicesWithGuid(
                     FreeDeviceInfoNode(&pNode);
                     OOPS();
                     break;
-                }        
-        
+                }
+
                 InsertTailList(&DeviceList->ListHead, &pNode->ListEntry);
             }
         }
@@ -3270,7 +3508,7 @@ AcquireDevicePowerState(
 
     pNode->LatestDevicePowerState = bResult ? cmPowerData.PD_MostRecentPowerState : PowerDeviceUnspecified;
 
-    return pNode->LatestDevicePowerState; 
+    return pNode->LatestDevicePowerState;
 }
 
 
@@ -3360,7 +3598,7 @@ FindMatchingDeviceNodeForDriverName(
 
         pEntry = pEntry->Flink;
     }
-    
+
     return NULL;
 }
 

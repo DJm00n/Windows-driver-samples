@@ -63,7 +63,21 @@ Revision History:
 #define USB_WIRELESS_CONTROLLER_INTERFACE   0xE0
 #define USB_APPLICATION_SPECIFIC_INTERFACE  0xFE
 //#define USB_VENDOR_SPECIFIC_INTERFACE      0xFF
+
+//
+// Device Class Definition for Human Interface Devices (HID) Version 1.11
+// 7.1 Standard Requests
+//
 #define USB_HID_DESCRIPTOR_TYPE             0x21
+#define USB_HID_REPORT_DESCRIPTOR_TYPE      0x22
+#define USB_HID_PHYSICAL_DESCRIPTOR_TYPE    0x23
+
+// 4.2 Subclass
+#define USB_HID_INTERFACE_SUBCLASS_BOOT     0x01
+
+// 4.3 Protocols
+#define USB_HID_INTERFACE_PROTOCOL_KEYBOARD 0x01
+#define USB_HID_INTERFACE_PROTOCOL_MOUSE    0x02
 
 //
 //IAD protocol values

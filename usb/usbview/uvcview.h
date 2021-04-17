@@ -240,6 +240,22 @@ typedef struct _STRING_DESCRIPTOR_NODE
     USB_STRING_DESCRIPTOR           StringDescriptor[1];
 } STRING_DESCRIPTOR_NODE, *PSTRING_DESCRIPTOR_NODE;
 
+typedef UCHAR HID_REPORT_DESCRIPTOR, *PHID_REPORT_DESCRIPTOR;
+
+//
+// Structure used to build a linked list of HID Report Descriptors
+// retrieved from a device.
+//
+#pragma warning( disable : 4200 )
+typedef struct _HID_REPORT_DESCRIPTOR_NODE
+{
+    struct _HID_REPORT_DESCRIPTOR_NODE* Next;
+    UCHAR                           InterfaceNumber;
+    USHORT                          DescriptorLength;
+    HID_REPORT_DESCRIPTOR           Descriptor[0];
+} HID_REPORT_DESCRIPTOR_NODE, *PHID_REPORT_DESCRIPTOR_NODE;
+#pragma warning( default : 4200 )
+
 //
 // A collection of device properties. The device can be hub, host controller or usb device
 //
@@ -345,6 +361,7 @@ typedef struct
     PUSB_DEVICE_PNP_STRINGS                UsbDeviceProperties;
     PDEVICE_INFO_NODE                      DeviceInfoNode;
     PUSB_HUB_CAPABILITIES_EX               HubCapabilityEx;  // NULL if not a HUB
+    PHID_REPORT_DESCRIPTOR_NODE            HidReportDescs;   // NULL if root HUB
 } USBDEVICEINFO, *PUSBDEVICEINFO;
 
 typedef struct _STRINGLIST
@@ -363,7 +380,6 @@ typedef struct _DEVICE_GUID_LIST {
     HDEVINFO   DeviceInfo;
     LIST_ENTRY ListHead;
 } DEVICE_GUID_LIST, *PDEVICE_GUID_LIST;
-
 
 /*****************************************************************************
  G L O B A L S
