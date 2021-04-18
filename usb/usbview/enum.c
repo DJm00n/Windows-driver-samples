@@ -2839,16 +2839,19 @@ GetAllHIDReportDescriptors(
                         interfaceDescriptor->bInterfaceNumber,
                         hidDescriptor->OptionalDescriptors[0].wDescriptorLength);
 
-                    if (hidReportDescriptors != NULL)
+                    if (hidReportDescriptor)
                     {
-                        // Append to linked list
-                        hidReportDescriptorsTail->Next = hidReportDescriptor;
-                        hidReportDescriptorsTail = hidReportDescriptorsTail->Next;
-                    }
-                    else
-                    {
-                        hidReportDescriptors = hidReportDescriptor;
-                        hidReportDescriptorsTail = hidReportDescriptors;
+                        if (hidReportDescriptors != NULL)
+                        {
+                            // Append to linked list
+                            hidReportDescriptorsTail->Next = hidReportDescriptor;
+                            hidReportDescriptorsTail = hidReportDescriptorsTail->Next;
+                        }
+                        else
+                        {
+                            hidReportDescriptors = hidReportDescriptor;
+                            hidReportDescriptorsTail = hidReportDescriptors;
+                        }
                     }
                 }
             }
@@ -2901,6 +2904,8 @@ GetHIDReportDescriptor(
     //     wLength   = Length of descriptor buffer
     //
 
+    hidDescReq->SetupPacket.bmRequest = 0x81; // Interface_In
+    hidDescReq->SetupPacket.bRequest = 0x06; // GetDescriptor
     hidDescReq->SetupPacket.wValue = (USB_HID_REPORT_DESCRIPTOR_TYPE << 8);
     hidDescReq->SetupPacket.wIndex = InterfaceNumber;
     hidDescReq->SetupPacket.wLength = DescriptorLength;
